@@ -8,6 +8,7 @@ public class PlayerController : Photon.MonoBehaviour
 	CharacterMotor motor;
 	Animator anim;
 	Core core;
+	LeftHandController leftHandController;
 	GameObject cameraObject;
 	Camera cameraComponent;
 
@@ -19,11 +20,13 @@ public class PlayerController : Photon.MonoBehaviour
 
 	public string jumpButton = "Jump";
 	public string moveButton = "Horizontal";
+	public string objectButton = "Object";
 
 	private Vector3 correctPlayerPos = Vector3.zero;
 	private Vector3 correctMousePos = Vector3.zero; 
 	private float move = 0f;
 	private bool jump = false;
+	private bool objectActive = false;
 	private bool onGround = false;
 	private double ping = 0f;
 
@@ -40,7 +43,10 @@ public class PlayerController : Photon.MonoBehaviour
 		hash = gameObject.GetComponent<HashId>();
 		headLook = gameObject.GetComponent<HeadLookController>();
 		motor = GetComponent<CharacterMotor>();
+		leftHandController = GetComponentInChildren<LeftHandController>();
 		core = GameObject.Find("Administration").GetComponent<Core>();
+
+		//anim.SetLayerWeight(1, 1);
 		if(core.online){
 			if(photonView.isMine){
 				core.mainHero = gameObject;
@@ -49,12 +55,17 @@ public class PlayerController : Photon.MonoBehaviour
 				else core.upHero = gameObject;
 				core.anotherHero = gameObject;
 				correctPlayerPos = transform.position;
-				motor.SetScriptEnable(false);
+				motor.SetScriptActivity(false);
 			}
 			RemoveControl();
 			core.PlayerInit();
 		}
 		isInitHero = true;
+	}
+
+	void OnAnimatorIK(int layerIndex)
+	{	
+		leftHandController.OnAnimatorIK(layerIndex);
 	}
 
 	void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
@@ -76,7 +87,8 @@ public class PlayerController : Photon.MonoBehaviour
 		stream.SendNext(transform.position);
 		stream.SendNext(move); 
 		stream.SendNext(jump);
-		stream.SendNext(motor.IsGrounded()); 
+		stream.SendNext(motor.IsGrounded());
+		stream.SendNext(objectActive);
 	}
 	
 	void PlayerStreamOther(PhotonStream stream, PhotonMessageInfo info) {
@@ -85,25 +97,30 @@ public class PlayerController : Photon.MonoBehaviour
 		move = (float)stream.ReceiveNext();
 		jump = (bool)stream.ReceiveNext();
 		onGround = (bool)stream.ReceiveNext();
+		objectActive = (bool)stream.ReceiveNext();
 		
 		ping = PhotonNetwork.time - info.timestamp;         
 	}
 
 	void Update()
 	{
-		if(photonView.isMine || !core.online){
-			move = Input.GetAxisRaw(moveButton);
-			jump = Input.GetButton(jumpButton);
-			onGround = motor.IsGrounded();
-			correctMousePos = Input.mousePosition;
-		} else {
-			transform.position = Vector3.Lerp(transform.position, correctPlayerPos, Time.deltaTime * smooth);
-		}
+		if(core.isInited()){
+			if(photonView.isMine || !core.online){
+				move = Input.GetAxisRaw(moveButton);
+				motor.releaseInputJump = !Input.GetButton(jumpButton);
+				if(!Input.GetButton(jumpButton)) motor.canNextJump = true;
+				jump = Input.GetButton(jumpButton) && motor.canNextJump;
+				objectActive = Input.GetButton(objectButton);
+				onGround = motor.IsGrounded();
+				correctMousePos = Input.mousePosition;
+			} else {
+				transform.position = Vector3.Lerp(transform.position, correctPlayerPos, Time.deltaTime * smooth);
+			}
 
-		if(hasControl){
 			motor.inputJump = jump;
-			motor.inputMoveDirection = new Vector3(0, 0, -move);
-
+			leftHandController.playerActive = objectActive;
+			motor.inputX = -move;
+			
 			Movement(move, 0f, jump, onGround, correctMousePos);
 		}
 	}

@@ -32,6 +32,7 @@ public class Core : Photon.MonoBehaviour {
 			PlayerController secondHeroController = downHero.GetComponent<PlayerController>();
 			secondHeroController.jumpButton = "Jump2";
 			secondHeroController.moveButton = "Horizontal2";
+			secondHeroController.objectButton = "Object2";
 
 			InitCamera(upHero, 0.5f, true);
 			InitCamera(downHero, 0, true);
@@ -48,7 +49,7 @@ public class Core : Photon.MonoBehaviour {
 	}
 
 	public bool isInited(){
-		return initedPrefabs == 2;
+		return initedPrefabs == 2 || !online;
 	}
 
 	public bool isUpHero()

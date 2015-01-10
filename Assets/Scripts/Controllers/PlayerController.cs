@@ -3,7 +3,6 @@ using System.Collections;
 
 public class PlayerController : Photon.MonoBehaviour
 {
-	HashId hash;	
 	HeadLookController headLook;
 	CharacterMotor motor;
 	Animator anim;
@@ -12,41 +11,49 @@ public class PlayerController : Photon.MonoBehaviour
 	GameObject cameraObject;
 	Camera cameraComponent;
 
+	Core.CharacterType heroType = Core.CharacterType.Not;
+
 	bool hasControl;
 	public float smooth = 10f;
-
 	public float turnSmoothing = 15f;
 	public float shiftTimeOffset = 0.4f;
+	public float perspective = 0.008f;
 
+	[System.NonSerialized]
 	public string jumpButton = "Jump";
+	[System.NonSerialized]
 	public string moveButton = "Horizontal";
+	[System.NonSerialized]
 	public string objectButton = "Object";
+	[System.NonSerialized]
+	public Vector3 correctMousePos = Vector3.zero;
 
 	private Vector3 correctPlayerPos = Vector3.zero;
-	private Vector3 correctMousePos = Vector3.zero; 
+	private Vector3 objectTargetPosition = Vector3.zero;
+	private GameObject objectTarget; 
 	private float move = 0f;
 	private bool jump = false;
 	private bool objectActive = false;
 	private bool onGround = false;
 	private double ping = 0f;
-
-	private float offset = 0f;
+	
 	private float hor = 0;
 	private float shiftTime = 0;
 	private bool shift = false;
 	private bool isInitHero = false;
 
+	private Vector3 raycast = Vector3.zero;
+	private Vector3 perspectiveOffset = Vector3.zero;
+
 	void Start () 
 	{
 		hasControl = true;
 		anim = GetComponent<Animator>();
-		hash = gameObject.GetComponent<HashId>();
 		headLook = gameObject.GetComponent<HeadLookController>();
 		motor = GetComponent<CharacterMotor>();
 		leftHandController = GetComponentInChildren<LeftHandController>();
 		core = GameObject.Find("Administration").GetComponent<Core>();
 
-		//anim.SetLayerWeight(1, 1);
 		if(core.online){
 			if(photonView.isMine){
 				core.mainHero = gameObject;
@@ -63,9 +70,22 @@ public class PlayerController : Photon.MonoBehaviour
 		isInitHero = true;
 	}
 
+	public void SetCharacterType(Core.CharacterType type)
+	{
+		heroType = type;
+	}
+
+	public void SetColor(Color color)
+	{
+		SkinnedMeshRenderer render = GetComponentInChildren<SkinnedMeshRenderer>();
+		foreach(Material mat in render.materials){
+			mat.color = color;
+		}
+	}
+
 	void OnAnimatorIK(int layerIndex)
 	{	
-		leftHandController.OnAnimatorIK(layerIndex);
+		if(layerIndex == 1) leftHandController.OnAnimatorIK();
 	}
 
 	void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
@@ -83,12 +103,12 @@ public class PlayerController : Photon.MonoBehaviour
 	}
 
 	void PlayerStreamMe(PhotonStream stream, PhotonMessageInfo info) {
-		stream.SendNext(Input.mousePosition); 
+		stream.SendNext(correctMousePos); 
 		stream.SendNext(transform.position);
 		stream.SendNext(move); 
 		stream.SendNext(jump);
 		stream.SendNext(motor.IsGrounded());
-		stream.SendNext(objectActive);
+		stream.SendNext(objectTargetPosition);
 	}
 	
 	void PlayerStreamOther(PhotonStream stream, PhotonMessageInfo info) {
@@ -97,7 +117,7 @@ public class PlayerController : Photon.MonoBehaviour
 		move = (float)stream.ReceiveNext();
 		jump = (bool)stream.ReceiveNext();
 		onGround = (bool)stream.ReceiveNext();
-		objectActive = (bool)stream.ReceiveNext();
+		objectTargetPosition = (Vector3)stream.ReceiveNext();
 		
 		ping = PhotonNetwork.time - info.timestamp;         
 	}
@@ -106,23 +126,39 @@ public class PlayerController : Photon.MonoBehaviour
 	{
 		if(core.isInited()){
 			if(photonView.isMine || !core.online){
+				correctMousePos = GetCorrectMousePosition();
 				move = Input.GetAxisRaw(moveButton);
 				motor.releaseInputJump = !Input.GetButton(jumpButton);
 				if(!Input.GetButton(jumpButton)) motor.canNextJump = true;
 				jump = Input.GetButton(jumpButton) && motor.canNextJump;
 				objectActive = Input.GetButton(objectButton);
+				objectTargetPosition = GetObjectTargetPosition();
 				onGround = motor.IsGrounded();
-				correctMousePos = Input.mousePosition;
 			} else {
 				transform.position = Vector3.Lerp(transform.position, correctPlayerPos, Time.deltaTime * smooth);
 			}
 
 			motor.inputJump = jump;
-			leftHandController.playerActive = objectActive;
+			leftHandController.objectTargetPosition = objectTargetPosition;
 			motor.inputX = -move;
 			
 			Movement(move, 0f, jump, onGround, correctMousePos);
 		}
+	}
+
+	public Vector3 GetCorrectMousePosition()
+	{
+		Ray cursorRay = cameraComponent.ScreenPointToRay(Input.mousePosition);
+		RaycastHit hit;
+		if (Physics.Raycast(cursorRay, out hit)) {
+			raycast = hit.point;
+		}
+
+		if(heroType == Core.CharacterType.Up) perspectiveOffset = new Vector3(0, Screen.height * 0.75f - Input.mousePosition.y, Input.mousePosition.x - Screen.width * 0.5f);
+		else perspectiveOffset = new Vector3(0, Screen.height * 0.25f - Input.mousePosition.y, Input.mousePosition.x - Screen.width * 0.5f);
+		perspectiveOffset *= perspective;
+
+		return raycast - perspectiveOffset;
 	}
 
 	public void SetCamera(GameObject cam)
@@ -131,32 +167,47 @@ public class PlayerController : Photon.MonoBehaviour
 		cameraComponent = cameraObject.GetComponent<Camera>();
 	}
 
-	private void Movement(float horizontal, float vertical, bool jump, bool isGrounded, Vector3 mousePos){
-		Ray cursorRay = cameraComponent.ScreenPointToRay(mousePos);
-		RaycastHit hit;
-		if (Physics.Raycast(cursorRay, out hit)) {
-			headLook.target = hit.point + offset * Vector3.up;
-		}
+	private Vector3 GetObjectTargetPosition(){
+		if(objectActive && objectTarget != null) return objectTarget.transform.position;
+		else if(!objectActive && objectTarget != null) return ResetObject();
+		else if(objectActive && objectTarget == null) return FindTargetObject();
+		return Vector3.zero;
+	}
 
-		anim.SetBool(hash.jumpBool, jump && !IsJumpState());
-		anim.SetBool(hash.inAir, !isGrounded);
+	private Vector3 ResetObject(){
+		objectTarget.GetComponent<DragingObject>().StopDraging();
+		objectTarget = null;
+		return Vector3.zero;
+	}
+
+	private Vector3 FindTargetObject(){
+		objectTarget = GameObject.Find("LeftHandCube");
+		objectTarget.GetComponent<DragingObject>().StartDraging();
+		return objectTarget.transform.position;
+	}
+
+	private void Movement(float horizontal, float vertical, bool jump, bool isGrounded, Vector3 mousePos){
+		headLook.target = mousePos;
+
+		anim.SetBool("Jump", jump && !IsJumpState());
+		anim.SetBool("InAir", !isGrounded);
 		
 		if(hor != 0 && hor != horizontal && !shift){
 			shiftTime = Time.time;
 			shift = true;
-			anim.SetBool(hash.shiftMoveBool, shift);
+			anim.SetBool("ShiftMove", shift);
 		}
 		
 		if(shift && Time.time > shiftTime + shiftTimeOffset){
 			shift = false;
-			anim.SetBool(hash.shiftMoveBool, shift);
+			anim.SetBool("ShiftMove", shift);
 		}
 		
 		if(horizontal != 0f){
 			Rotating(0f, horizontal);
-			anim.SetBool(hash.runBool, true);
+			anim.SetBool("Run", true);
 		}
-		else anim.SetBool(hash.runBool, false);
+		else anim.SetBool("Run", false);
 		
 		hor = horizontal;
 	}

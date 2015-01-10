@@ -17,7 +17,7 @@ public class Core : Photon.MonoBehaviour {
 	GameDataController data;
 	int initedPrefabs = 0;
 	
-	enum CharacterType { Not, Up, Down};
+	public enum CharacterType { Not, Up, Down};
 	CharacterType heroType = CharacterType.Not;
 	// Use this for initialization
 	void Awake () {
@@ -29,7 +29,11 @@ public class Core : Photon.MonoBehaviour {
 		if(!online){
 			upHero = ((Transform)Instantiate(heroPrefab, upHeroPostion.position, new Quaternion(0, -0.05f, 0, 1))).gameObject;
 			downHero = ((Transform)Instantiate(heroPrefab, downHeroPostion.position, new Quaternion(0, -0.05f, 0, 1))).gameObject;
+			upHero.GetComponent<PlayerController>().SetColor(Color.red);
+			upHero.GetComponent<PlayerController>().SetCharacterType(CharacterType.Up);
 			PlayerController secondHeroController = downHero.GetComponent<PlayerController>();
+			secondHeroController.SetColor(Color.green);
+			secondHeroController.SetCharacterType(CharacterType.Down);
 			secondHeroController.jumpButton = "Jump2";
 			secondHeroController.moveButton = "Horizontal2";
 			secondHeroController.objectButton = "Object2";
@@ -68,7 +72,7 @@ public class Core : Photon.MonoBehaviour {
 	}
 	
 	void Update () {
-	
+		
 	}
 
 	void OnGUI()
@@ -117,7 +121,10 @@ public class Core : Photon.MonoBehaviour {
 			InitCamera(upHero, 0.5f, upHero.GetComponent<PlayerController>().photonView.isMine);
 
 			upHero.GetComponent<PlayerController>().GiveControl();
+			upHero.GetComponent<PlayerController>().SetColor(Color.red);
+			upHero.GetComponent<PlayerController>().SetCharacterType(CharacterType.Up);
 			downHero.GetComponent<PlayerController>().GiveControl();
+			downHero.GetComponent<PlayerController>().SetColor(Color.green);
 		}
 	}
 

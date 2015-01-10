@@ -4,8 +4,7 @@ using System.Collections;
 public class LeftHandController : MonoBehaviour {
 
 	public GameObject player;
-	public GameObject targetObject;
-	private GameObject targetObjectHand;
+	public Vector3 objectTargetPosition = Vector3.zero;
 	
 	public float handWeight = 0f;
 	public float handWeightMax = 1f;
@@ -14,84 +13,65 @@ public class LeftHandController : MonoBehaviour {
 	public float smoothDown = 10f;
 	public float smoothTarget = 8f;
 
-	[System.NonSerialized]
-	public bool playerActive = false;
-	[System.NonSerialized]
-	public bool isButtonUp = false;
-	[System.NonSerialized]
-	public bool inRadius = false;
-	[System.NonSerialized]
-	public bool targetInSight = false;
-	[System.NonSerialized]
-	public bool targetFirst = false;
-
 	private Animator anim;
+	private Vector3 target;
+	private Vector3 handTarget;
+	private Vector3 lastTarget;
 
 	void Start () {
-		targetObject = GameObject.Find("LeftHandCube");
-		targetObjectHand = targetObject;
 		anim = player.GetComponent<Animator>();
 	}
 
 	void Update () {
-		anim.SetBool("Object", playerActive);
+		anim.SetBool("Object", objectTargetPosition != Vector3.zero);
 	}
 
-	bool CanPulling () {
-		return playerActive && isButtonUp;
-	}
-
-	public void OnAnimatorIK(int layerIndex)
+	public void OnAnimatorIK()
 	{	
-		if((CanPulling () || handWeight > 0) && layerIndex == 1)
+		if(objectTargetPosition != Vector3.zero || handWeight > 0)
 		{	
-			if(CanPulling () && handWeight != handWeightMax){
-				handWeight = Mathf.Lerp(handWeight, handWeightMax, Time.deltaTime * smoothUp);
-			}
-
-			Vector3 target = targetObjectHand.transform.position;
-			
-			if(!targetInSight && targetObject != null){
+			target = objectTargetPosition;
+			if(Vector3.Angle(target - player.transform.position, player.transform.forward) > fieldOfViewAngle * 0.5f)
+			{
 				target = new Vector3(-4000, 0, 0);
 			}
+			if(objectTargetPosition == Vector3.zero)
+			{
+				target = lastTarget;
+			}
+			lastTarget = target;
+
+			handTarget = Vector3.Lerp(handTarget, target, Time.deltaTime * smoothTarget);
+
+			if(objectTargetPosition != Vector3.zero && handWeight != handWeightMax){
+				handWeight = Mathf.Lerp(handWeight, handWeightMax, Time.deltaTime * smoothUp);
+			}
 			
-			anim.SetIKPosition(AvatarIKGoal.LeftHand, target);
+			anim.SetIKPosition(AvatarIKGoal.LeftHand, handTarget);
 			anim.SetIKPositionWeight(AvatarIKGoal.LeftHand, handWeight); 
 		}
-		if(!CanPulling () && layerIndex == 1){
+		if(objectTargetPosition == Vector3.zero){
 			if(handWeight != 0){
 				handWeight = Mathf.Lerp(handWeight, 0, Time.deltaTime * smoothDown);
 			}
 			if(handWeight < 0.01){
 				handWeight = 0;
+				handTarget = gameObject.transform.position;
 			}
 		}
 	}
 
 	void FixedUpdate(){
-		if(!playerActive && !isButtonUp){
-			isButtonUp = true;
-		}
-		if(targetObject != null && (CanPulling() || handWeight > 0)){
-			targetInSight = false;
-			targetFirst = false;
-			
-			Vector3 direction = targetObject.transform.position - player.transform.position;
-			float angle = Vector3.Angle(direction, player.transform.forward);
-			
-			if(angle < fieldOfViewAngle * 0.5f)
-			{
-				targetInSight = true;
-			}
-			RaycastHit hit;
-			if(Physics.Raycast(player.transform.position, direction, out hit))
-			{
-				if(hit.collider.gameObject == targetObject)
-				{
-					targetFirst = true;
-				}
-			}
-			inRadius = targetObject && Vector3.Distance(player.transform.position, targetObject.transform.position) < gameObject.GetComponent<SphereCollider>().radius;
+		if(objectTargetPosition != Vector3.zero || handWeight > 0){
+
+			//RaycastHit hit;
+			//if(Physics.Raycast(player.transform.position, direction, out hit))
+			//{
+				//if(hit.collider.gameObject == targetObject)
+				//{
+					//targetFirst = true;
+				//}
+			//}
 		}
 	}
 }

@@ -36,7 +36,7 @@ public class Core : Photon.MonoBehaviour {
 			secondHeroController.SetCharacterType(CharacterType.Down);
 			secondHeroController.jumpButton = "Jump2";
 			secondHeroController.moveButton = "Horizontal2";
-			secondHeroController.objectButton = "Object2";
+			secondHeroController.objectButton = "Fire2";
 
 			InitCamera(upHero, 0.5f, true);
 			InitCamera(downHero, 0, true);

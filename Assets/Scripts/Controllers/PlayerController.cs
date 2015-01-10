@@ -18,13 +18,14 @@ public class PlayerController : Photon.MonoBehaviour
 	public float turnSmoothing = 15f;
 	public float shiftTimeOffset = 0.4f;
 	public float perspective = 0.008f;
+	public LayerMask targetingLayerMask = -1;
 
 	[System.NonSerialized]
 	public string jumpButton = "Jump";
 	[System.NonSerialized]
 	public string moveButton = "Horizontal";
 	[System.NonSerialized]
-	public string objectButton = "Object";
+	public string objectButton = "Fire1";
 	[System.NonSerialized]
 	public Vector3 correctMousePos = Vector3.zero;
 
@@ -41,6 +42,7 @@ public class PlayerController : Photon.MonoBehaviour
 	private float shiftTime = 0;
 	private bool shift = false;
 	private bool isInitHero = false;
+	private GameObject pObjectTarget;
 
 	private Vector3 raycast = Vector3.zero;
 	private Vector3 perspectiveOffset = Vector3.zero;
@@ -154,6 +156,17 @@ public class PlayerController : Photon.MonoBehaviour
 			raycast = hit.point;
 		}
 
+		if (Physics.Raycast(cursorRay, out hit, Mathf.Infinity, targetingLayerMask)) {
+			pObjectTarget = hit.transform.gameObject;
+		} else {
+			pObjectTarget = null;
+		}
+		if(pObjectTarget != null){
+			DragingObject drag = pObjectTarget.GetComponent<DragingObject>();
+			if(drag != null && drag.canDraging) drag.MouseOver();
+			else pObjectTarget = null;
+		}
+
 		if(heroType == Core.CharacterType.Up) perspectiveOffset = new Vector3(0, Screen.height * 0.75f - Input.mousePosition.y, Input.mousePosition.x - Screen.width * 0.5f);
 		else perspectiveOffset = new Vector3(0, Screen.height * 0.25f - Input.mousePosition.y, Input.mousePosition.x - Screen.width * 0.5f);
 		perspectiveOffset *= perspective;
@@ -181,7 +194,8 @@ public class PlayerController : Photon.MonoBehaviour
 	}
 
 	private Vector3 FindTargetObject(){
-		objectTarget = GameObject.Find("LeftHandCube");
+		objectTarget = pObjectTarget;
+		if(objectTarget == null) return Vector3.zero;
 		objectTarget.GetComponent<DragingObject>().StartDraging();
 		return objectTarget.transform.position;
 	}

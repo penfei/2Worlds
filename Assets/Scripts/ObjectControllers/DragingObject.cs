@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using HighlightingSystem;
 
 public class DragingObject: Photon.MonoBehaviour {
 	Core core;
@@ -12,25 +13,53 @@ public class DragingObject: Photon.MonoBehaviour {
 	private Vector3 correctPos = Vector3.zero;
 	private Quaternion correctRot = Quaternion.identity;
 
+	private Highlighter h;
+
 	void Start()
 	{
+		h = GetComponent<Highlighter>();
+		if (h == null) { h = gameObject.AddComponent<Highlighter>(); }
+		h.SeeThroughOn();
 		core = GameObject.Find("Administration").GetComponent<Core>();
 		//rigidbody.isKinematic = !photonView.isMine && core.online;
 		rigidbody.useGravity = !core.online || photonView.isMine;
 		correctPos = transform.position;
 		correctRot = transform.rotation;
 	}
+
+	public void MouseOver()
+	{
+		if(!startDragging) h.On(Color.blue);
+	}
 	
 	public void StartDraging () {
 		rigidbody.useGravity = false;
-		rigidbody.freezeRotation = true;
 		startDragging = true;
+		string color = "red";
+		if(core.isDownHero()) color = "green";
+		if(core.online) photonView.RPC("StartDrag", PhotonTargets.All, color);
+		else StartDrag(color, null);
+	}
+
+	[RPC]
+	void StartDrag(string color, PhotonMessageInfo info)
+	{
+		rigidbody.freezeRotation = true;
+		if(color == "gree") h.ConstantOn(Color.green);
+		else h.ConstantOn(Color.red);
 	}
 
 	public void StopDraging () {
 		startDragging = false;
-		rigidbody.freezeRotation = false;
+		if(core.online) photonView.RPC("StopDrag", PhotonTargets.All);
+		else StopDrag(null);
+	}
+
+	[RPC]
+	void StopDrag(PhotonMessageInfo info)
+	{
 		rigidbody.useGravity = !core.online || photonView.isMine;
+		h.Off();
 	}
 
 	void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)

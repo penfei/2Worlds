@@ -33,13 +33,16 @@ public class LeftHandController : MonoBehaviour {
 			target = objectTargetPosition;
 			if(Vector3.Angle(target - player.transform.position, player.transform.forward) > fieldOfViewAngle * 0.5f)
 			{
-				target = new Vector3(-4000, 0, 0);
+				if(player.transform.eulerAngles.y < 315 && player.transform.eulerAngles.y > 160) target = new Vector3(player.transform.position.x + 10f, transform.position.y, transform.position.z);
+				else target = new Vector3(player.transform.position.x - 10f, transform.position.y, transform.position.z);
 			}
 			if(objectTargetPosition == Vector3.zero)
 			{
 				target = lastTarget;
 			}
+			if(anim.GetBool("Run")) target.y = transform.position.y;
 			lastTarget = target;
+
 
 			handTarget = Vector3.Lerp(handTarget, target, Time.deltaTime * smoothTarget);
 
@@ -58,20 +61,6 @@ public class LeftHandController : MonoBehaviour {
 				handWeight = 0;
 				handTarget = gameObject.transform.position;
 			}
-		}
-	}
-
-	void FixedUpdate(){
-		if(objectTargetPosition != Vector3.zero || handWeight > 0){
-
-			//RaycastHit hit;
-			//if(Physics.Raycast(player.transform.position, direction, out hit))
-			//{
-				//if(hit.collider.gameObject == targetObject)
-				//{
-					//targetFirst = true;
-				//}
-			//}
 		}
 	}
 }

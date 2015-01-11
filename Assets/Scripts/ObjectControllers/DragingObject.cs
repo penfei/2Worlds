@@ -8,6 +8,7 @@ public class DragingObject: Photon.MonoBehaviour {
 	public bool canDraging = true;
 	public float smooth = 5f;
 	public float smoothDraging = 5f;
+	public float smoothRotating = 1f;
 
 	private bool startDragging = false;
 	private Vector3 correctPos = Vector3.zero;
@@ -30,6 +31,18 @@ public class DragingObject: Photon.MonoBehaviour {
 	public void MouseOver()
 	{
 		if(!startDragging) h.On(Color.blue);
+	}
+
+	public void Rotate () {
+		transform.Rotate(new Vector3(2, 0, 0));
+		if(core.online) photonView.RPC("RPCRotate", PhotonTargets.Others, transform.eulerAngles);
+	}
+
+	[RPC]
+	void RPCRotate(Vector3 rot, PhotonMessageInfo info)
+	{
+		Vector3 newRotation = Vector3.Lerp(transform.eulerAngles, rot, Time.deltaTime * smoothRotating);
+		transform.eulerAngles = new Vector3(newRotation.x, transform.eulerAngles.y, transform.eulerAngles.z);
 	}
 	
 	public void StartDraging () {
@@ -58,6 +71,7 @@ public class DragingObject: Photon.MonoBehaviour {
 	[RPC]
 	void StopDrag(PhotonMessageInfo info)
 	{
+		rigidbody.freezeRotation = false;
 		rigidbody.useGravity = !core.online || photonView.isMine;
 		h.Off();
 	}
@@ -95,8 +109,6 @@ public class DragingObject: Photon.MonoBehaviour {
 	void Drag(Vector3 mousePosition, PhotonMessageInfo info)
 	{
 		Vector3 positionChange = mousePosition - transform.position;
-		//rigidbody.AddForce(positionChange * smooth, ForceMode.VelocityChange);
 		rigidbody.velocity = positionChange * smoothDraging;
-		//rigidbody.angularVelocity *= 0.9f;
 	}
 }

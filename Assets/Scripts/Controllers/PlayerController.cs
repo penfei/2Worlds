@@ -27,6 +27,8 @@ public class PlayerController : Photon.MonoBehaviour
 	[System.NonSerialized]
 	public string objectButton = "Fire1";
 	[System.NonSerialized]
+	public string objectRotateButton = "Object";
+	[System.NonSerialized]
 	public Vector3 correctMousePos = Vector3.zero;
 
 	private Vector3 correctPlayerPos = Vector3.zero;
@@ -131,6 +133,7 @@ public class PlayerController : Photon.MonoBehaviour
 				correctMousePos = GetCorrectMousePosition();
 				move = Input.GetAxisRaw(moveButton);
 				motor.releaseInputJump = !Input.GetButton(jumpButton);
+				if(Input.GetButton(objectRotateButton) && objectTarget != null) objectTarget.GetComponent<DragingObject>().Rotate();
 				if(!Input.GetButton(jumpButton)) motor.canNextJump = true;
 				jump = Input.GetButton(jumpButton) && motor.canNextJump;
 				objectActive = Input.GetButton(objectButton);

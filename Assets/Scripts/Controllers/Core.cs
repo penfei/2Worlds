@@ -37,6 +37,7 @@ public class Core : Photon.MonoBehaviour {
 			secondHeroController.jumpButton = "Jump2";
 			secondHeroController.moveButton = "Horizontal2";
 			secondHeroController.objectButton = "Fire2";
+			secondHeroController.objectRotateButton = "Object2";
 
 			InitCamera(upHero, 0.5f, true);
 			InitCamera(downHero, 0, true);

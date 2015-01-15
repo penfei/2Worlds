@@ -10,8 +10,6 @@ public class StartMenu : Photon.MonoBehaviour {
 	private bool complete = false;
 	private int gamesCount = 0;
 	
-	private bool connectToRoom = false;
-	
 	void Start () {
 		PhotonNetwork.automaticallySyncScene = true;
 		
@@ -22,9 +20,9 @@ public class StartMenu : Photon.MonoBehaviour {
 		
 		connected = false;
 		complete = false;
-		connectToRoom = false;
 		gamesCount = 0;
 		data = GetComponent<DataController>();
+		//PlayerPrefs.DeleteAll();
 	}
 	
 	void OnGUI()
@@ -61,7 +59,6 @@ public class StartMenu : Photon.MonoBehaviour {
 			
 			if (GUILayout.Button("Create Room", GUILayout.Width(100)))
 			{
-				connectToRoom = true;
 				PhotonNetwork.CreateRoom(PhotonNetwork.playerName, true, true, 2);
 			}
 			
@@ -73,7 +70,6 @@ public class StartMenu : Photon.MonoBehaviour {
 			GUILayout.FlexibleSpace();
 			if (GUILayout.Button("Join Random", GUILayout.Width(100)))
 			{
-				connectToRoom = true;
 				PhotonNetwork.JoinRandomRoom();
 			}
 
@@ -90,7 +86,6 @@ public class StartMenu : Photon.MonoBehaviour {
 					GUILayout.Label(roomInfo.name.Split("&"[0])[0]);
 					if (GUILayout.Button("Join"))
 					{
-						connectToRoom = true;
 						PhotonNetwork.JoinRoom(roomInfo.name);
 					}
 					

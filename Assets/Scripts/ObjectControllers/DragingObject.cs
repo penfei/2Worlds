@@ -24,6 +24,7 @@ public class DragingObject: Photon.MonoBehaviour {
 		core = GameObject.Find("Administration").GetComponent<Core>();
 		//rigidbody.isKinematic = !photonView.isMine && core.online;
 		rigidbody.useGravity = !core.online || photonView.isMine;
+		rigidbody.constraints = RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionX;
 		correctPos = transform.position;
 		correctRot = transform.rotation;
 	}
@@ -71,7 +72,7 @@ public class DragingObject: Photon.MonoBehaviour {
 	[RPC]
 	void StopDrag(PhotonMessageInfo info)
 	{
-		rigidbody.freezeRotation = false;
+		rigidbody.constraints = RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionX;
 		rigidbody.useGravity = !core.online || photonView.isMine;
 		h.Off();
 	}
